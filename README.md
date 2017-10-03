@@ -2,7 +2,7 @@
 Local Mail Box Synchronizer
 # On Ubuntu
 ```
-sudo apt update & sudo apt upgrade & sudo apt install python3
+sudo apt-get update | sudo apt-get upgrade | sudo apt-get install python3
 git clone https://github.com/clecle226/MailSyncLocal.git
 chmod a+x MailSync.py
 nano Config.cfg
