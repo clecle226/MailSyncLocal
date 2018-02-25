@@ -15,7 +15,6 @@ def SyncMailBox(NameMailBoxe,Host,Port,User,Pass,AppendOnly=True,VerifyAllMail=F
 		M = imaplib.IMAP4_SSL(Host,Port)
 		M.login(User,Pass)
 		typ, listeBox = M.list()
-		print (listeBox)
 		for Box in listeBox:
 			NameBox = re.findall('\(.*?\) \"\/\" (.*)', Box.decode("utf-8"))[0]
 			NameBox = NameBox.replace("\"","")
