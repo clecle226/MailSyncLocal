@@ -16,7 +16,9 @@ def SyncMailBox(NameMailBoxe,Host,Port,User,Pass,AppendOnly=True,VerifyAllMail=F
         M.login(User,Pass)
         typ, listeBox = M.list()
         for Box in listeBox:
-                NameBox = re.findall('\"(.*?)\"', Box.decode("utf-8"))[1]
+                NameBox = re.findall('\(.*?\) \"\/\" (.*)', Box.decode("utf-8"))[0]
+                NameBox = NameBox.replace("\"","")
+                print ("Traitement de "+NameBox)
                 NameDir = os.path.normpath("./"+NameMailBoxe+"/"+NameBox.replace(".","/")+"/")
                 if not os.path.exists(NameDir):
                         os.makedirs(NameDir)
@@ -24,7 +26,7 @@ def SyncMailBox(NameMailBoxe,Host,Port,User,Pass,AppendOnly=True,VerifyAllMail=F
                 typ, data = M.search(None, 'ALL')
                 ListeUIDMailBoxes = []
                 for num in data[0].split():
-                        NameFileUID = urllib.parse.quote_plus(re.findall('\<(.*?)\>', (((M.fetch(num, '(BODY[HEADER.FIELDS (MESSAGE-ID)])'))[1][0][1]).decode("utf-8"))  )[0])
+                        NameFileUID = urllib.parse.quote_plus(re.findall('Message-ID: (.*)', (((M.fetch(num, '(BODY[HEADER.FIELDS (MESSAGE-ID)])'))[1][0][1]).decode("utf-8")),flags=re.I)[0])
                         if not AppendOnly:
                                 ListeUIDMailBoxes.append(NameFileUID+".eml")
                         NameFile = os.path.normpath(NameDir+"/"+NameFileUID+".eml")
