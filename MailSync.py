@@ -25,12 +25,18 @@ def SyncMailBox(NameMailBoxe,Host,Port,User,Pass,AppendOnly=True,VerifyAllMail=F
 			ListIUD = []
 			for key in Mbox.iterkeys():
 				ListIUD.append(Mbox[key]['message-id'])
+				if Mbox[key]['message-id'] == None:
+					ListIUD.append(((Mbox[key]).get_payload()).replace("\r",""))
 			Mbox.lock()
 			M.select(NameBox,readonly=True)
 			typ, data = M.search(None, 'ALL')
 			ListeUIDMailBoxes = []
 			for num in data[0].split():
-					NameFileUID = (re.findall('Message-ID: (.*)', (((M.fetch(num, '(BODY[HEADER.FIELDS (MESSAGE-ID)])'))[1][0][1]).decode("utf-8")),flags=re.I)[0]).strip()
+					try:
+						NameFileUID = (re.findall('Message-ID:(.*)', (((M.fetch(num, '(BODY[HEADER.FIELDS (MESSAGE-ID)])'))[1][0][1]).decode("utf-8")),flags=re.I)[0]).strip()
+					except IndexError:
+						typ, data = M.fetch(num, '(RFC822)')
+						NameFileUID = (email.message_from_bytes(data[0][1]).get_payload()).replace("\r","")
 					if NameFileUID not in ListIUD:
 						typ, data = M.fetch(num, '(RFC822)')
 						Mbox.add(email.message_from_bytes(data[0][1]))
