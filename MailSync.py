@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
 
-import getpass, imaplib, os, re, argparse, sys, configparser, getpass
+import getpass, imaplib, os, re, argparse, sys, configparser, getpass, mailbox, email, string
 import urllib.parse
 from email.parser import BytesParser, Parser
 from email.policy import default
@@ -13,47 +13,42 @@ def SyncMailBox(NameMailBoxe,Host,Port,User,Pass,AppendOnly=True,VerifyAllMail=F
 		if Pass == None:
 				Pass = getpass.getpass()
 		M = imaplib.IMAP4_SSL(Host,Port)
+		M.utf8_enabled = True
+		M.readonly = True
 		M.login(User,Pass)
 		typ, listeBox = M.list()
 		for Box in listeBox:
 			NameBox = re.findall('\(.*?\) \"\/\" (.*)', Box.decode("utf-8"))[0]
 			NameBox = NameBox.replace("\"","")
 			print ("Traitement de "+NameBox)
-			NameDir = os.path.normpath("./"+NameMailBoxe+"/"+NameBox.replace(".","/")+"/")
-			if not os.path.exists(NameDir):
-					os.makedirs(NameDir)
+			Mbox = mailbox.mbox("./"+NameMailBoxe+"/"+NameBox+".mbox", factory=None, create=True)
+			ListIUD = []
+			for key in Mbox.iterkeys():
+				ListIUD.append(Mbox[key]['message-id'])
+			Mbox.lock()
 			M.select(NameBox,readonly=True)
 			typ, data = M.search(None, 'ALL')
 			ListeUIDMailBoxes = []
 			for num in data[0].split():
-					NameFileUID = urllib.parse.quote_plus(re.findall('Message-ID: (.*)', (((M.fetch(num, '(BODY[HEADER.FIELDS (MESSAGE-ID)])'))[1][0][1]).decode("utf-8")),flags=re.I)[0])
-					if not AppendOnly:
-							ListeUIDMailBoxes.append(NameFileUID+".eml")
-					NameFile = os.path.normpath(NameDir+"/"+NameFileUID+".eml")
-					if not os.path.exists(NameFile):
-							typ, data = M.fetch(num, '(RFC822)')
-							f = open(NameFile, 'w')
-							msg = BytesParser(policy=default).parsebytes(data[0][1])
-							f.write(str(msg))
-							f.close()
-					elif VerifyAllMail and os.path.exists(NameFile):
-							typ, data = M.fetch(num, '(RFC822)')
-							msg = BytesParser(policy=default).parsebytes(data[0][1])
-							f = open(NameFile, 'r')
-							if f.read() != str(msg):
-									print("Conflit contenu de :"+NameFileUID)
-									f = open(NameFile, 'w')
-									f.write(str(msg))
-							f.close()
-			if not AppendOnly:
-					ListeUIDDirectory = os.listdir(NameDir)
-					for item in ListeUIDDirectory:
-							if os.path.isdir(os.path.normpath(NameDir+"/"+item)):
-								  ListeUIDDirectory.remove(item)  
+					NameFileUID = (re.findall('Message-ID: (.*)', (((M.fetch(num, '(BODY[HEADER.FIELDS (MESSAGE-ID)])'))[1][0][1]).decode("utf-8")),flags=re.I)[0]).strip()
+					if NameFileUID not in ListIUD:
+						typ, data = M.fetch(num, '(RFC822)')
+						Mbox.add(email.message_from_bytes(data[0][1]))
+					ListeUIDMailBoxes.append(NameFileUID)
+			Mbox.flush()
+			Mbox.unlock()
+			#Remove message server discarded
+			Mbox.lock()
+			if not AppendOnly:  
 					for item in ListeUIDMailBoxes:
-							ListeUIDDirectory.remove(item)
-					for item in ListeUIDDirectory:
-							os.remove(os.path.normpath(NameDir+"/"+item))
+							ListIUD.remove(item)
+					for item in ListIUD:
+						for key in Mbox.iterkeys():
+							if Mbox[key]['message-id'] == item:
+								inbox.discard(key)
+			Mbox.flush()
+			Mbox.unlock()
+			###################################
 		M.close()
 		M.logout()		  
 
